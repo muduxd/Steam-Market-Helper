@@ -1,0 +1,32 @@
+span.market_table_value.normal_price {
+    margin: 5px 0px 0px 0px !important;
+}
+
+.quantity, .volume_data, .buy_order_data, .price_without_fee {
+    color: white !important;
+}
+
+#mainContents {
+    display: flex;
+    flex-direction: column;
+}
+
+#sideBar {
+    display: flex;
+    justify-content: center;
+}
+
+#findItems {
+    margin: 20px 0 !important;
+}
+
+#searchResults {
+    margin: 0 auto;
+}
+
+div.market_search_results_header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+}
