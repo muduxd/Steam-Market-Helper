@@ -174,7 +174,14 @@ const setWidths = () => {
 
 
 
+// ! FETCH VOLUMES
 
+const fetchVolumes = async (url) => {
+    const response = await fetch(url)
+    const { prices } = await response.json()
+
+    return prices
+}
 
 const getVolumes = async (country, currency) => {
     if (!document.querySelectorAll("a.market_listing_row_link")) return [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -183,6 +190,7 @@ const getVolumes = async (country, currency) => {
     const volumes = []
 
 
+    const fetchingURLs = []
     for (const url of URLs) {
         const separated = url.split("/")
 
@@ -190,33 +198,61 @@ const getVolumes = async (country, currency) => {
         const appId = separated[separated.length - 2]
 
         const baseUrl = `https://steamcommunity.com/market/pricehistory/?country=${country}&currency=${currency}&appid=${appId}&market_hash_name=${hashName}`
+        fetchingURLs.push(baseUrl)
+    }
 
-        try {
-            const response = await fetch(baseUrl)
-            const { prices } = await response.json()
+    try {
+        let fetchedPrices = await Promise.all([
+            fetchVolumes(fetchingURLs[0]),
+            fetchVolumes(fetchingURLs[1]),
+            fetchVolumes(fetchingURLs[2]),
+            fetchVolumes(fetchingURLs[3]),
+            fetchVolumes(fetchingURLs[4]),
+            fetchVolumes(fetchingURLs[5]),
+            fetchVolumes(fetchingURLs[6]),
+            fetchVolumes(fetchingURLs[7]),
+            fetchVolumes(fetchingURLs[8]),
+            fetchVolumes(fetchingURLs[9])
+        ])
 
-
+        for (const prices of fetchedPrices) {
             let totalVolume = 0
             const yesterdayDate = new Date(new Date() - 86400000).toUTCString()
-
+    
             for (let index = prices.length - 1; index >= prices.length - 24; index--) {
                 const sellDate = new Date(Date.parse(prices[index][0])).toUTCString()
-
+    
                 if (Date.parse(sellDate) <= Date.parse(yesterdayDate)) break
                 totalVolume += +prices[index][2]
             }
-
+    
             volumes.push(totalVolume)
         }
-        catch (error) {
-            volumes.push(0)
-        }
-
+    }
+    catch(error) {
+        volumes.concat([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     }
 
     return volumes    
 }
 
+
+// ! FETCH BUY ORDERS
+
+const fetchHtml = async (url) => {
+    const response = await fetch(url)
+    const html = await response.text()
+
+    return html
+}
+
+
+const fetchBuyOrders = async (url) => {
+    const data = await fetch(url)
+    const { buy_order_graph } = await data.json()
+
+    return buy_order_graph
+}
 
 
 const getBuyOrders = async (country, language, currency) => {
@@ -231,30 +267,49 @@ const getBuyOrders = async (country, language, currency) => {
     const parser = new DOMParser()
 
 
-    for (const url of URLs) {
+    try {
+        let documents = await Promise.all([
+            fetchHtml(URLs[0]),
+            fetchHtml(URLs[1]),
+            fetchHtml(URLs[2]),
+            fetchHtml(URLs[3]),
+            fetchHtml(URLs[4]),
+            fetchHtml(URLs[5]),
+            fetchHtml(URLs[6]),
+            fetchHtml(URLs[7]),
+            fetchHtml(URLs[8]),
+            fetchHtml(URLs[9]),
+        ])
 
-        try {
-            const response = await fetch(url)
-            const html = await response.text()
-
-
+        const fetchingURLs = []
+        for (const html of documents) {
             const dom = parser.parseFromString(html, 'text/html')
             const item_nameid = fetchItemId(dom.documentElement.outerHTML)
             const baseUrl = `https://steamcommunity.com/market/itemordershistogram?country=${country}&language=${language}&currency=${currency}&item_nameid=${item_nameid}`
+        
+            fetchingURLs.push(baseUrl)
+        }
 
-            
-            const data = await fetch(baseUrl)
-            const { buy_order_graph } = await data.json()
 
+        let fetchedOrders = await Promise.all([
+            fetchBuyOrders(fetchingURLs[0]),
+            fetchBuyOrders(fetchingURLs[1]),
+            fetchBuyOrders(fetchingURLs[2]),
+            fetchBuyOrders(fetchingURLs[3]),
+            fetchBuyOrders(fetchingURLs[4]),
+            fetchBuyOrders(fetchingURLs[5]),
+            fetchBuyOrders(fetchingURLs[6]),
+            fetchBuyOrders(fetchingURLs[7]),
+            fetchBuyOrders(fetchingURLs[8]),
+            fetchBuyOrders(fetchingURLs[9]),
+        ])
+        for (const buy_order_graph of fetchedOrders) {
             const highest_buy_order = formatPrice(buy_order_graph[0][0])
-
-
-            buyOrders.push(highest_buy_order)        
+            buyOrders.push(highest_buy_order)      
         }
-        catch (error) {
-            buyOrders.push(0)
-        }
-
+    }
+    catch(error) {
+        buyOrders.concat([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     }
 
     return buyOrders
@@ -284,20 +339,19 @@ const appendData = () => {
         if (event.data.type && event.data.type === "STEAM_DATA") {
             const { country, language, currency } = event.data.steamData
 
-            getVolumes(country, currency).then(volumes => {
-                volumeDivs.forEach((div, index) => {
-                    div.textContent = volumes[index]
+            
+            Promise.all([getVolumes(country, currency), getBuyOrders(country, language, currency)])
+                .then(values => {
+                    volumeDivs.forEach((div, index) => {
+                        div.textContent = values[0][index]
+                    })
+
+                    buyOrderDivs.forEach((div, index) => {
+                        div.textContent = values[1][index]
+                    })
                 })
-            })
-
-
-            getBuyOrders(country, language, currency).then(buyOrders => {
-                buyOrderDivs.forEach((div, index) => {
-                    div.textContent = buyOrders[index]
-                })
-            })
-
         }
+
     }, false)
 }
 
